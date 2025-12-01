@@ -143,7 +143,7 @@ def analyze_crop_image(image, additional_info=""):
     Gemini APIを使って作物の画像を分析
     """
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         prompt = f"""
 この画像を分析して、以下の情報を日本語のJSON形式で返してください：
@@ -180,7 +180,7 @@ def predict_harvest_date(crop_analysis, weather_data, additional_info=""):
     Gemini APIを使って収穫時期を予測
     """
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         # 気象データを要約
         weather_summary = create_weather_summary(weather_data)
