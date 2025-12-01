@@ -5,7 +5,7 @@
 ## 機能
 
 - 📸 **画像分析**: Gemini AIが作物の画像から種類、成長段階、健康状態を分析
-- 🌡️ **気象データ統合**: WeatherAPIで過去7日間と今後7日間の気温・湿度データを取得
+- 🌡️ **気象データ統合**: Open-Meteo APIで過去7日間と今後7日間の気温・湿度データを取得（完全無料）
 - 🔮 **収穫予測**: AIが気象データと生育状況から収穫時期を予測
 - 📍 **位置情報対応**: GPS自動取得または手動入力に対応
 - 📊 **視覚化**: 気温推移のグラフ表示
@@ -42,13 +42,14 @@ pip install -r requirements.txt
 
 #### 必要なAPIキー
 
-1. **Google Gemini API**
-   - [Google AI Studio](https://makersuite.google.com/app/apikey)でAPIキーを取得
-   - 無料枠あり
+**Google Gemini API**
+- [Google AI Studio](https://makersuite.google.com/app/apikey)でAPIキーを取得
+- 無料枠あり
 
-2. **WeatherAPI**
-   - [WeatherAPI](https://www.weatherapi.com/signup.aspx)でアカウント作成
-   - 無料枠: 1日1,000,000リクエストまで
+**Open-Meteo API**
+- APIキー不要・完全無料
+- 過去データと予報データの両方にアクセス可能
+- https://open-meteo.com/
 
 #### 環境変数の設定
 
@@ -58,11 +59,10 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-`.env`ファイルを編集してAPIキーを設定：
+`.env`ファイルを編集してGemini APIキーを設定：
 
 ```
 GEMINI_API_KEY=あなたのGemini APIキー
-WEATHER_API_KEY=あなたのWeather APIキー
 ```
 
 ### 5. アプリケーションの起動
@@ -113,7 +113,7 @@ streamlit run app.py
 
 - **フロントエンド**: Streamlit
 - **AI/ML**: Google Gemini API (gemini-2.0-flash-exp)
-- **気象データ**: WeatherAPI
+- **気象データ**: Open-Meteo API（無料）
 - **可視化**: Plotly
 - **言語**: Python 3.8+
 
@@ -163,8 +163,9 @@ forecast_growing/
 
 ### 気象データ取得エラー
 
-- WeatherAPIの無料枠制限を超えていないか確認
 - 位置情報が正しいか確認
+- インターネット接続を確認
+- Open-Meteo APIが一時的にダウンしていないか確認
 
 ## ライセンス
 

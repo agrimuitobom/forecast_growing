@@ -16,7 +16,6 @@ load_dotenv()
 
 # Configure APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -44,12 +43,7 @@ with st.sidebar:
     else:
         st.success("✓ Gemini API設定済み")
 
-    if not WEATHER_API_KEY:
-        weather_key_input = st.text_input("WeatherAPI Key", type="password")
-        if weather_key_input:
-            WEATHER_API_KEY = weather_key_input
-    else:
-        st.success("✓ WeatherAPI設定済み")
+    st.info("🌤️ Open-Meteo API使用中（無料・APIキー不要）")
 
     st.markdown("---")
     st.markdown("### 使い方")
@@ -61,32 +55,77 @@ with st.sidebar:
     """)
 
 
-def get_weather_data(location, api_key):
+def get_coordinates_from_location(location_str):
     """
-    WeatherAPIから過去と未来の気象データを取得
+    位置情報文字列から緯度経度を取得
+    """
+    # すでに緯度経度の形式（例: "35.6762,139.6503"）の場合
+    if ',' in location_str and not any(c.isalpha() for c in location_str):
+        try:
+            lat, lon = map(float, location_str.split(','))
+            return lat, lon
+        except:
+            pass
+
+    # 地名の場合はOpen-MeteoのGeocoding APIを使用
+    try:
+        geocoding_url = "https://geocoding-api.open-meteo.com/v1/search"
+        params = {
+            'name': location_str,
+            'count': 1,
+            'language': 'ja',
+            'format': 'json'
+        }
+        response = requests.get(geocoding_url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            if 'results' in data and len(data['results']) > 0:
+                return data['results'][0]['latitude'], data['results'][0]['longitude']
+    except Exception as e:
+        st.error(f"位置情報の取得に失敗しました: {str(e)}")
+
+    return None, None
+
+
+def get_weather_data(location_str):
+    """
+    Open-Meteo APIから過去と未来の気象データを取得
     """
     try:
+        # 緯度経度を取得
+        latitude, longitude = get_coordinates_from_location(location_str)
+
+        if latitude is None or longitude is None:
+            st.error("位置情報を取得できませんでした。")
+            return None
+
         # 過去7日間のデータ
-        history_data = []
-        for i in range(7, 0, -1):
-            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-            url = f"http://api.weatherapi.com/v1/history.json"
-            params = {
-                'key': api_key,
-                'q': location,
-                'dt': date
-            }
-            response = requests.get(url, params=params)
-            if response.status_code == 200:
-                history_data.append(response.json())
+        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        history_url = "https://archive-api.open-meteo.com/v1/archive"
+        history_params = {
+            'latitude': latitude,
+            'longitude': longitude,
+            'start_date': start_date,
+            'end_date': end_date,
+            'daily': 'temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,precipitation_sum',
+            'timezone': 'auto'
+        }
+
+        history_response = requests.get(history_url, params=history_params)
+        history_data = history_response.json() if history_response.status_code == 200 else None
 
         # 未来7日間の予報
-        forecast_url = f"http://api.weatherapi.com/v1/forecast.json"
+        forecast_url = "https://api.open-meteo.com/v1/forecast"
         forecast_params = {
-            'key': api_key,
-            'q': location,
-            'days': 7
+            'latitude': latitude,
+            'longitude': longitude,
+            'daily': 'temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,precipitation_sum',
+            'timezone': 'auto',
+            'forecast_days': 7
         }
+
         forecast_response = requests.get(forecast_url, params=forecast_params)
         forecast_data = forecast_response.json() if forecast_response.status_code == 200 else None
 
@@ -190,19 +229,29 @@ def create_weather_summary(weather_data):
     """
     summary = "【過去7日間の気象】\n"
 
-    if weather_data and 'history' in weather_data:
-        for day_data in weather_data['history']:
-            date = day_data['forecast']['forecastday'][0]['date']
-            day = day_data['forecast']['forecastday'][0]['day']
-            summary += f"{date}: 最高気温{day['maxtemp_c']}°C, 最低気温{day['mintemp_c']}°C, 平均湿度{day['avghumidity']}%\n"
+    if weather_data and 'history' in weather_data and weather_data['history']:
+        history = weather_data['history']
+        if 'daily' in history:
+            daily = history['daily']
+            for i in range(len(daily['time'])):
+                date = daily['time'][i]
+                max_temp = daily['temperature_2m_max'][i]
+                min_temp = daily['temperature_2m_min'][i]
+                humidity = daily['relative_humidity_2m_mean'][i]
+                summary += f"{date}: 最高気温{max_temp:.1f}°C, 最低気温{min_temp:.1f}°C, 平均湿度{humidity:.0f}%\n"
 
     summary += "\n【今後7日間の予報】\n"
 
     if weather_data and 'forecast' in weather_data and weather_data['forecast']:
-        for day in weather_data['forecast']['forecast']['forecastday']:
-            date = day['date']
-            day_data = day['day']
-            summary += f"{date}: 最高気温{day_data['maxtemp_c']}°C, 最低気温{day_data['mintemp_c']}°C, 平均湿度{day_data['avghumidity']}%\n"
+        forecast = weather_data['forecast']
+        if 'daily' in forecast:
+            daily = forecast['daily']
+            for i in range(len(daily['time'])):
+                date = daily['time'][i]
+                max_temp = daily['temperature_2m_max'][i]
+                min_temp = daily['temperature_2m_min'][i]
+                humidity = daily['relative_humidity_2m_mean'][i]
+                summary += f"{date}: 最高気温{max_temp:.1f}°C, 最低気温{min_temp:.1f}°C, 平均湿度{humidity:.0f}%\n"
 
     return summary
 
@@ -217,22 +266,26 @@ def plot_temperature_chart(weather_data):
     avg_humidity = []
 
     # 過去のデータ
-    if weather_data and 'history' in weather_data:
-        for day_data in weather_data['history']:
-            date = day_data['forecast']['forecastday'][0]['date']
-            day = day_data['forecast']['forecastday'][0]['day']
-            dates.append(date)
-            max_temps.append(day['maxtemp_c'])
-            min_temps.append(day['mintemp_c'])
-            avg_humidity.append(day['avghumidity'])
+    if weather_data and 'history' in weather_data and weather_data['history']:
+        history = weather_data['history']
+        if 'daily' in history:
+            daily = history['daily']
+            for i in range(len(daily['time'])):
+                dates.append(daily['time'][i])
+                max_temps.append(daily['temperature_2m_max'][i])
+                min_temps.append(daily['temperature_2m_min'][i])
+                avg_humidity.append(daily['relative_humidity_2m_mean'][i])
 
     # 未来のデータ
     if weather_data and 'forecast' in weather_data and weather_data['forecast']:
-        for day in weather_data['forecast']['forecast']['forecastday']:
-            dates.append(day['date'])
-            max_temps.append(day['day']['maxtemp_c'])
-            min_temps.append(day['day']['mintemp_c'])
-            avg_humidity.append(day['day']['avghumidity'])
+        forecast = weather_data['forecast']
+        if 'daily' in forecast:
+            daily = forecast['daily']
+            for i in range(len(daily['time'])):
+                dates.append(daily['time'][i])
+                max_temps.append(daily['temperature_2m_max'][i])
+                min_temps.append(daily['temperature_2m_min'][i])
+                avg_humidity.append(daily['relative_humidity_2m_mean'][i])
 
     # グラフ作成
     fig = go.Figure()
@@ -314,8 +367,8 @@ st.markdown("---")
 st.header("🔮 ステップ3: 予測の実行")
 
 if st.button("🚀 収穫時期を予測", type="primary", use_container_width=True):
-    if not GEMINI_API_KEY or not WEATHER_API_KEY:
-        st.error("❌ APIキーが設定されていません。サイドバーで設定してください。")
+    if not GEMINI_API_KEY:
+        st.error("❌ Gemini APIキーが設定されていません。サイドバーで設定してください。")
     elif not location_str:
         st.error("❌ 位置情報が設定されていません。")
     elif not uploaded_file:
@@ -332,7 +385,7 @@ if st.button("🚀 収穫時期を予測", type="primary", use_container_width=T
 
                 # 2. 気象データ取得
                 st.info("🌤️ 気象データを取得しています...")
-                weather_data = get_weather_data(location_str, WEATHER_API_KEY)
+                weather_data = get_weather_data(location_str)
 
                 if weather_data:
                     st.success("✓ 気象データ取得完了")
@@ -402,4 +455,4 @@ if st.button("🚀 収穫時期を予測", type="primary", use_container_width=T
                         st.plotly_chart(temp_chart, use_container_width=True)
 
 st.markdown("---")
-st.caption("© 2024 作物生育予測アプリ | Powered by Gemini AI & WeatherAPI")
+st.caption("© 2024 作物生育予測アプリ | Powered by Gemini AI & Open-Meteo")
