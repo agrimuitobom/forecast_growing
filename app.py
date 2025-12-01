@@ -15,7 +15,11 @@ from streamlit_geolocation import streamlit_geolocation
 load_dotenv()
 
 # Configure APIs
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Try to get from Streamlit secrets first, then fall back to environment variable
+try:
+    GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
+except:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)

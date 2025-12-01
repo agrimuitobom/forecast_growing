@@ -73,6 +73,36 @@ streamlit run app.py
 
 ブラウザで自動的に開かない場合は、`http://localhost:8501`にアクセスしてください。
 
+## 🚀 Streamlit Cloudへのデプロイ
+
+ローカルではなく、オンラインで公開する場合は以下の手順でStreamlit Cloudにデプロイできます。
+
+### 1. Streamlit Cloudアカウント作成
+
+https://share.streamlit.io/ にアクセスしてGitHubアカウントでサインイン
+
+### 2. アプリをデプロイ
+
+1. 「New app」をクリック
+2. このリポジトリを選択：`agrimuitobom/forecast_growing`
+3. ブランチ：`claude/crop-prediction-app-014ot8L5PYcRUW3f5B7MJ9Zs`（または`main`にマージ後は`main`）
+4. メインファイル：`app.py`
+5. 「Deploy」をクリック
+
+### 3. Secretsの設定
+
+デプロイ後、アプリの設定から「Secrets」を開き、以下を追加：
+
+```toml
+GEMINI_API_KEY = "あなたのGemini APIキー"
+```
+
+保存すると自動的にアプリが再起動します。
+
+### 4. 完了！
+
+数分後、アプリが公開URLで利用可能になります！
+
 ## 使い方
 
 ### ステップ1: 位置情報の設定
