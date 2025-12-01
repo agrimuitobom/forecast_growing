@@ -112,7 +112,7 @@ streamlit run app.py
 ## 技術スタック
 
 - **フロントエンド**: Streamlit
-- **AI/ML**: Google Gemini API (gemini-pro-vision, gemini-pro)
+- **AI/ML**: Google Gemini API (gemini-1.5-flash)
 - **気象データ**: Open-Meteo API（無料）
 - **可視化**: Plotly
 - **言語**: Python 3.8+
